@@ -1,0 +1,8 @@
+python-dotenv
+
+# Для удобной работы с БД
+SQLAlchemy
+typing_extensions
+
+# Для защиты паролей в БД
+Werkzeug
