@@ -20,3 +20,6 @@ class ConfigServer:
         f"postgresql+psycopg2://{POSTGRES_USER}:{POSTGRES_PASSWORD}"
         f"@{POSTGRES_HOST}:{POSTGRES_PORT}/{POSTGRES_DB}"
     )
+
+    SERVER_HOST = os.getenv("HOST")
+    SERVER_PORT = int(os.getenv("PORT"))

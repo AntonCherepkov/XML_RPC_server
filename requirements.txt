@@ -1,8 +1,11 @@
 python-dotenv
 
-# Для удобной работы с БД
+# Для работы с БД
 SQLAlchemy
 typing_extensions
+
+# Для работы с PostgreSQL
+psycopg2
 
 # Для защиты паролей в БД
 Werkzeug

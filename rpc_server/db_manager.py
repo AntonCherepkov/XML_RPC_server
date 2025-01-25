@@ -25,7 +25,7 @@ class DataBaseManager:
 
     def create_tables(self):
         """Метод для создания таблиц (первый запуск)"""
-        Base.metadata.tables.keys(self.engine)
+        Base.metadata.create_all(self.engine)
 
 
     def execute_raw_query(self, query, params=None):
@@ -42,13 +42,21 @@ class DataBaseManager:
 
 
     def add_app_data(self, key, value):
-        """Метод для добавления новых данных в БД"""
+        """Метод для добавления новых данных в БД, если ключ уже существует - обновляет значение"""
         try:
+            existing_data = self.session.query(AppData).filter_by(key=key).first()
+
+            if existing_data:
+                existing_data.value = value
+                self.session.commit()
+                print(f"Обновлено значение для ключа {key}")
+                return f"Value updated for key: {key}"
+
             new_data = AppData(key=key, value=value)
             self.session.add(new_data)
             self.session.commit()
-
-            return 'New information added'
+            print(f"Добавлена новая запись: {key} -> {value}")
+            return "New information added"
 
         except (sqlalchemy.exc.IntegrityError, Exception) as e:
             print(f'Ошибка добавления информации: {e}')

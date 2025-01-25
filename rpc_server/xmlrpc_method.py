@@ -15,29 +15,38 @@ from rpc_server.config_server import ConfigServer
 def class_decorator_for_methods(methods_to_decorate: List[str]) -> Callable:
     """Декоратор для класса, применяющийся только к указанным методам"""
     def class_decorator(cls):
-        """Поиск указанных в параметре методов, для их нахождения в переданном классе"""
+        """Поиск указанных в параметре методов для их нахождения в переданном классе"""
         for method_name in methods_to_decorate:
             if hasattr(cls, method_name):
                 original_method = getattr(cls, method_name)
+                def make_wrapper(method_name, original_method):
+                    """Функция-обертка для метода, чтобы выполнить проверку сессии именно для него"""
+                    @functools.wraps(original_method)
+                    def wrapped_method(self, *args, **kwargs):
+                        """Проверка валидности сессии в действительном экземпляре переданного класса"""
+                        print(f"Вызов метода на сервере: {method_name}")
 
-                @functools.wraps(original_method)
-                def wrapped_method(self, *args, **kwargs):
-                    """Проверка валидности сессии в действительном экземпляре переданного класса"""
-                    session_id = args[0] if args else None
-                    if not session_id or session_id not in self.sessions.sessions:
-                        return 'Session invalid or expired'
-                    session_data = self.sessions.sessions[session_id]
-                    if session_data['expiry'] < time.time():
-                        return 'Session expired'
+                        session_id = kwargs.get('session_id') or (args[0] if args else None)
+                        if not session_id or session_id not in self.sessions.sessions:
+                            print('Сессия не найдена')
+                            return 'Session invalid or expired'
+                        session_data = self.sessions.sessions[session_id]
+                        if session_data['expiry'] < time.time():
+                            print('Срок действия сессии истек')
+                            return 'Session expired'
 
-                    return original_method(self, *args, **kwargs)
+                        print('Сессия валидна')
+                        return original_method(self, *args, **kwargs)
 
+                    return wrapped_method
+
+                wrapped_method = make_wrapper(method_name, original_method)
                 setattr(cls, method_name, wrapped_method)
         return cls
     return class_decorator
 
 
-@class_decorator_for_methods(['generate_secret', 'get_challenge', 'get_data'])
+@class_decorator_for_methods(['generate_secret', 'get_challenge', 'get_data', 'add_data'])
 class XMLRPCMethods:
     """
     Класс, реализующий API сервера для обработки запросов XML-RPC
@@ -48,6 +57,11 @@ class XMLRPCMethods:
     """
     def __init__(self) -> None:
         self.sessions = SessionManager()
+
+
+    def ping(self):
+        """Метод для проверки соединения с сервером, при вызове клиентом метода ping, сервер возвращает pong"""
+        return "pong"
 
 
     def login(self, user_name, password):
@@ -69,6 +83,7 @@ class XMLRPCMethods:
 
     def generate_secret(self, session_id: str, client_public_key: int, prime_num=5, generator_num=23) -> int:
         """Метод для генерации секрета для аутентификации клиента, реализуемый методом Диффи-Хеллмана"""
+        print(f'Генерация секрета сервера для сессии {session_id}')
 
         server_private_key = secrets.randbelow(prime_num - 1) + 1
         server_public_key = pow(generator_num, server_private_key, prime_num)
@@ -76,6 +91,7 @@ class XMLRPCMethods:
         shared_secret = pow(client_public_key, server_private_key, prime_num)
         self.sessions.sessions[session_id]['shared_secret'] = shared_secret
 
+        print(f'Публичный ключ сервера для сессии {session_id}: {server_public_key}')
         return server_public_key
 
 
@@ -83,6 +99,7 @@ class XMLRPCMethods:
         """Метод для генерации челленджа для клиента"""
         challenge = secrets.token_hex(16)
         self.sessions.sessions[session_id]['challenge'] = challenge
+        print(f'Сгенерирован челлендж: {challenge}')
 
         return challenge
 
@@ -91,10 +108,14 @@ class XMLRPCMethods:
         """Метод для регистрации нового пользователя"""
         hashed_password = generate_password_hash(password=password)
 
+        print(f'Регистрируем пользователя: {user_name}')
+
         with DataBaseManager(db_url=ConfigServer.SQLALCHEMY_DATABASE_URL) as db:
             if db.get_user_by_username(username=user_name):
                 return 'User already exists'
             message = db.add_user(user_name=user_name, password=hashed_password)
+
+            print(f'Результат регистрации: {message}')
 
             return message
 
