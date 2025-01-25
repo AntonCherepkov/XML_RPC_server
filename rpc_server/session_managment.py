@@ -7,6 +7,7 @@ class SessionManager:
     def __init__(self):
         self.sessions = {}
 
+
     def generate_session_id(self, username):
         """
         Генерирует уникальный идентификатор сессии на основе логина, проверяет словарь на наличие

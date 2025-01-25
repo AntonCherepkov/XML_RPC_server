@@ -1,6 +1,30 @@
-version: '3.8'
+version: '3.9'
 
 services:
+  server:
+    build:
+      context: .
+      dockerfile: rpc_server/Dockerfile_server
+    container_name: xmlrpc_server
+    environment:
+      - PYTHONUNBUFFERED=1
+    networks:
+      - xmlrpc_network
+    depends_on:
+      - db
+    ports:
+      - "8000:8000"
+
+  client:
+    build:
+      context: .
+      dockerfile: rpc_client/Dockerfile_client
+    container_name: xmlrpc_client
+    networks:
+      - xmlrpc_network
+    depends_on:
+      - server
+
   db:
     image: postgres:13
     container_name: xmlrpc_db
@@ -12,22 +36,6 @@ services:
       - "5432:5432"
     volumes:
       - ./db_data:/var/lib/postgresql/data
-    networks:
-      - xmlrpc_network
-
-  backend:
-    build:
-      context: ./backend
-    container_name: xmlrpc_backend
-    environment:
-      - DB_HOST=db
-      - DB_USER=xmlrpc_user
-      - DB_PASSWORD=secure_password
-      - DB_NAME=xmlrpc_db
-    ports:
-      - "8080:8080"
-    depends_on:
-      - db
     networks:
       - xmlrpc_network
 
